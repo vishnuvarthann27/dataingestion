@@ -19,14 +19,16 @@ public class LoanTxnController {
 
     @PostMapping("/sendloantxn1")
     public String producerToLOAN_TXN_1() throws URISyntaxException {
-        excelReaderService.readExcelAndSendToKafka(Paths.get(getClass().getClassLoader().getResource("loantxn1.xlsx").toURI()), "LOAN_TXN_1");
+        excelReaderService.readExcelAndSendToKafkafile("/loantxn1.xlsx", "LOAN_TXN_1", 1_000);
+        //excelReaderService.readExcelAndSendToKafka(Paths.get(getClass().getClassLoader().getResource("loantxn1.xlsx").toURI()), "LOAN_TXN_1",1_000);
         return "Excel data sent to Kafka topic: " +
                 "LOAN_TXN_1";
     }
 
     @PostMapping("/sendloantxn2")
     public String producerToLOAN_TXN_2() throws URISyntaxException {
-        excelReaderService.readExcelAndSendToKafka(Paths.get(getClass().getClassLoader().getResource("loantxn2.xlsx").toURI()), "LOAN_TXN_2");
+        excelReaderService.readExcelAndSendToKafkafile("/loantxn2.xlsx", "LOAN_TXN_2", 1_000);
+        //excelReaderService.readExcelAndSendToKafka(Paths.get(getClass().getClassLoader().getResource("loantxn2.xlsx").toURI()), "LOAN_TXN_2", 1_000);
         return "Excel data sent to Kafka topic: " +
                 "LOAN_TXN_2";
     }

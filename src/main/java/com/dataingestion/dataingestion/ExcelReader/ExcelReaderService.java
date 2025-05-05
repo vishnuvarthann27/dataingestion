@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -25,7 +26,7 @@ public class ExcelReaderService {
         this.kafkaProducerService = kafkaProducerService;
     }
 
-    public void readExcelAndSendToKafka(Path filePath, String topic) {
+    public void readExcelAndSendToKafka(Path filePath, String topic, long delay) {
         try (FileInputStream fis = new FileInputStream(filePath.toFile());
              Workbook workbook = new XSSFWorkbook(fis)) {
 
@@ -48,16 +49,69 @@ public class ExcelReaderService {
                     rowData.put(headers.get(i), getCellValue(cell));
                 }
 
-                // Add created_timestamp field
                 rowData.put("created_timestamp", dateTimeFormat .format(new Date()));
 
-                // Convert rowData map to JSON
                 String jsonMessage = objectMapper.writeValueAsString(rowData);
-                kafkaProducerService.sendMessage(topic, jsonMessage);
-                System.out.println("Sent JSON to Kafka: " + jsonMessage);
+                Object loanNumberObj = rowData.get("invstr_loan_nbr");
+                String loanNumber = (loanNumberObj != null) ? loanNumberObj.toString() : null;
+
+                if (loanNumber != null) {
+                    kafkaProducerService.sendMessage(topic, loanNumber, jsonMessage);
+                    System.out.println("Sent JSON to Kafka: " + jsonMessage);
+                } else {
+                    System.out.println("Missing invstr_loan_nbr for row, skipping message send.");
+                }
+
+                Thread.sleep(delay);
             }
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void readExcelAndSendToKafkafile(String filePath, String topic, long delay) {
+        try (InputStream inputStream = getClass().getResourceAsStream(filePath)) {
+            assert inputStream != null;
+            try (Workbook workbook = new XSSFWorkbook(inputStream)) {
+
+                Sheet sheet = workbook.getSheetAt(0); // Read first sheet
+                Iterator<Row> rowIterator = sheet.iterator();
+
+                // Get headers from the first row
+                Row headerRow = rowIterator.next();
+                List<String> headers = new ArrayList<>();
+                for (Cell cell : headerRow) {
+                    headers.add(cell.getStringCellValue());
+                }
+
+                while (rowIterator.hasNext()) {
+                    Row row = rowIterator.next();
+                    Map<String, Object> rowData = new LinkedHashMap<>();
+
+                    for (int i = 0; i < headers.size(); i++) {
+                        Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                        rowData.put(headers.get(i), getCellValue(cell));
+                    }
+
+                    rowData.put("created_timestamp", dateTimeFormat .format(new Date()));
+
+                    String jsonMessage = objectMapper.writeValueAsString(rowData);
+                    Object loanNumberObj = rowData.get("invstr_loan_nbr");
+                    String loanNumber = (loanNumberObj != null) ? loanNumberObj.toString() : null;
+
+                    if (loanNumber != null) {
+                        kafkaProducerService.sendMessage(topic, loanNumber, jsonMessage);
+                        System.out.println("Sent JSON to Kafka: " + jsonMessage);
+                    } else {
+                        System.out.println("Missing invstr_loan_nbr for row, skipping message send.");
+                    }
+
+                    Thread.sleep(delay);
+                }
+
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
